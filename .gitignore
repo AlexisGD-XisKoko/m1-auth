@@ -27,3 +27,6 @@ ceremony-out/
 
 # Node (middleware TS)
 node_modules/
+
+# Excepción: llave PÚBLICA de vectores de prueba (JO-01)
+!tests/vectors/test_key_p256.pem
