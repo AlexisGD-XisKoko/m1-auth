@@ -1,0 +1,3 @@
+# Falsos positivos revisados por QA (AG-02): contraseña de EJEMPLO en los curl del README (sección 4.4)
+84ff15ac5ef424bbb60d4fea38a9b93cdb8cef97:README.md:generic-api-key:258
+84ff15ac5ef424bbb60d4fea38a9b93cdb8cef97:README.md:generic-api-key:260
