@@ -1,0 +1,10 @@
+{
+  "name": "@boletera/m1-jwt-middleware",
+  "version": "0.1.0",
+  "description": "Middleware reutilizable de validación JWT ES256 con JWKS remoto (BT-03)",
+  "main": "jwtAuth.ts",
+  "types": "jwtAuth.ts",
+  "dependencies": {
+    "jose": "^5.9.6"
+  }
+}
