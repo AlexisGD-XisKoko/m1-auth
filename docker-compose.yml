@@ -1,0 +1,46 @@
+# Entorno local de M1: app + PostgreSQL + Redis.
+# La versión de PostgreSQL debe ser la MISMA versión mayor que la BD en Neon
+# (confirmar con Osvaldo; Neon usa 17 por defecto).
+services:
+  app:
+    build: .
+    env_file: .env
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: boletera
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Cuando exista platform/db/00_init.sql (OG-01), cópialo a ./db/ y se
+      # ejecutará automáticamente la primera vez que arranque el contenedor.
+      - ./db:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d boletera"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:
