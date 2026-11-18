@@ -1,30 +1,22 @@
-# Entorno local de M1: app + PostgreSQL + Redis.
-# La versión de PostgreSQL debe ser la MISMA versión mayor que la BD en Neon
-# (confirmar con Osvaldo; Neon usa 17 por defecto).
+# Entorno local completo de M1: PostgreSQL (BD general) + Redis + migraciones + servicio.
+#   cp .env.example .env && python scripts/gen_secrets.py >> .env
+#   docker compose up --build
+# PostgreSQL 17 = misma versión mayor que Neon (confirmar con Osvaldo, OG-02).
 services:
-  app:
-    build: .
-    env_file: .env
-    ports:
-      - "8000:8000"
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-
   db:
     image: postgres:17
     environment:
       POSTGRES_DB: boletera
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      M1_OWNER_PASSWORD: ${M1_OWNER_PASSWORD:?Genera los secretos con scripts/gen_secrets.py}
+      M1_APP_PASSWORD: ${M1_APP_PASSWORD:?Genera los secretos con scripts/gen_secrets.py}
+      OTHER_MODULES_PASSWORD: ${OTHER_MODULES_PASSWORD:-}
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-      # Cuando exista platform/db/00_init.sql (OG-01), cópialo a ./db/ y se
-      # ejecutará automáticamente la primera vez que arranque el contenedor.
+      # 00_init.sh corre 00_init.sql (esquemas, roles y permisos) la PRIMERA vez.
       - ./db:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d boletera"]
@@ -41,6 +33,31 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+  # Aplica las migraciones del esquema auth con el rol dueño (m1_owner) y termina.
+  migrate:
+    build: .
+    command: ["alembic", "upgrade", "head"]
+    environment:
+      MIGRATIONS_DATABASE_URL: postgresql+psycopg://m1_owner:${M1_OWNER_PASSWORD}@db:5432/boletera
+    depends_on:
+      db:
+        condition: service_healthy
+
+  app:
+    build: .
+    env_file: .env
+    environment:
+      # El servicio se conecta con el rol de aplicación, nunca con el dueño del esquema.
+      DATABASE_URL: postgresql+psycopg://m1_app:${M1_APP_PASSWORD}@db:5432/boletera
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "8000:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
 
 volumes:
   pgdata:

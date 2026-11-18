@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'">
+  <link rel="icon" href="data:,">
+  <title>M1 · Panel de administración</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="logo">M1</span> Auth &amp; Crypto Core <small>Panel de administración</small></div>
+    <div id="session" class="session hidden">
+      <span id="whoami"></span>
+      <button id="logout" class="ghost">Cerrar sesión</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- PM-01/PM-02: login (token solo en memoria, nunca en localStorage) -->
+    <section id="login-view" class="card narrow">
+      <h1>Iniciar sesión</h1>
+      <p class="muted">Solo cuentas con rol <b>admin</b>.</p>
+      <form id="login-form">
+        <label>Correo <input name="email" type="email" required autocomplete="username"></label>
+        <label>Contraseña <input name="password" type="password" required autocomplete="current-password"></label>
+        <button type="submit">Entrar</button>
+        <p id="login-error" class="error"></p>
+      </form>
+    </section>
+
+    <section id="app-view" class="hidden">
+      <div id="token-info" class="card token"></div>
+
+      <nav class="tabs" role="tablist">
+        <button data-tab="users" class="active">Usuarios</button>
+        <button data-tab="enroll">Enrolamiento</button>
+        <button data-tab="certs">Certificados</button>
+        <button data-tab="devices">Dispositivos</button>
+        <button data-tab="audit">Bitácora</button>
+      </nav>
+
+      <!-- PM-03 -->
+      <section id="tab-users" class="card tab">
+        <div class="toolbar">
+          <input id="user-q" placeholder="Buscar por correo o nombre">
+          <select id="user-role"><option value="">Todos los roles</option><option>buyer</option><option>staff</option><option>admin</option></select>
+          <button id="user-search">Buscar</button>
+        </div>
+        <details class="create">
+          <summary>Alta de usuario</summary>
+          <form id="user-create" class="inline">
+            <input name="nombre" placeholder="Nombre" required>
+            <input name="email" type="email" placeholder="Correo" required>
+            <input name="password" type="password" placeholder="Contraseña (mín. 8)" required minlength="8">
+            <select name="role"><option>staff</option><option>buyer</option><option>admin</option></select>
+            <button type="submit">Crear</button>
+          </form>
+        </details>
+        <table><thead><tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Estado</th><th>Intentos</th><th>Acciones</th></tr></thead>
+          <tbody id="users-body"></tbody></table>
+      </section>
+
+      <!-- PM-04 -->
+      <section id="tab-enroll" class="card tab hidden">
+        <form id="enroll-form" class="inline">
+          <input name="device_name" placeholder="Nombre del escáner (p. ej. Puerta-Norte-01)" required minlength="3">
+          <button type="submit">Generar código de un solo uso</button>
+        </form>
+        <div id="enroll-result" class="hidden code-box"></div>
+      </section>
+
+      <section id="tab-certs" class="card tab hidden">
+        <div class="toolbar">
+          <select id="cert-profile"><option value="">Todos los perfiles</option><option>service</option><option>device</option><option>event-signing</option></select>
+          <select id="cert-status"><option value="">Todos</option><option>VALID</option><option>REVOKED</option></select>
+          <button id="cert-search">Filtrar</button>
+          <a class="ghost button" href="/pki/ca-chain" target="_blank" rel="noopener">Cadena PEM</a>
+          <a class="ghost button" href="/pki/crl" target="_blank" rel="noopener">CRL</a>
+        </div>
+        <table><thead><tr><th>Serial</th><th>Sujeto</th><th>Perfil</th><th>Vence</th><th>Estado</th><th></th></tr></thead>
+          <tbody id="certs-body"></tbody></table>
+      </section>
+
+      <section id="tab-devices" class="card tab hidden">
+        <table><thead><tr><th>Nombre</th><th>Serial del certificado</th><th>Enrolado</th><th>Estado</th><th></th></tr></thead>
+          <tbody id="devices-body"></tbody></table>
+      </section>
+
+      <!-- PM-05 -->
+      <section id="tab-audit" class="card tab hidden">
+        <div class="toolbar">
+          <select id="audit-action">
+            <option value="">Todas las acciones</option>
+            <option>login.success</option><option>login.failed</option><option>account.locked</option>
+            <option>refresh.reuse_detected</option><option>user.registered</option><option>user.created</option>
+            <option>user.role_changed</option><option>user.status_changed</option><option>certificate.issued</option>
+            <option>certificate.revoked</option><option>crl.published</option><option>device.enrollment_code_created</option>
+            <option>device.enrolled</option><option>device.revoked</option><option>jwt.key_rotated</option>
+          </select>
+          <input id="audit-since" type="date">
+          <button id="audit-search">Filtrar</button>
+          <button id="rotate-key" class="ghost">Rotar llave JWT</button>
+        </div>
+        <table><thead><tr><th>#</th><th>Fecha (UTC)</th><th>Acción</th><th>Actor</th><th>Objetivo</th><th>IP</th><th>TSA</th></tr></thead>
+          <tbody id="audit-body"></tbody></table>
+      </section>
+    </section>
+  </main>
+
+  <dialog id="confirm">
+    <form method="dialog">
+      <p id="confirm-text"></p>
+      <label id="reason-wrap">Motivo
+        <select id="reason">
+          <option>keyCompromise</option><option>cessationOfOperation</option><option>superseded</option>
+          <option>affiliationChanged</option><option>unspecified</option>
+        </select>
+      </label>
+      <menu><button value="cancel" class="ghost">Cancelar</button><button value="ok" id="confirm-ok">Confirmar</button></menu>
+    </form>
+  </dialog>
+  <div id="toast" class="toast hidden"></div>
+  <script src="app.js"></script>
+</body>
+</html>

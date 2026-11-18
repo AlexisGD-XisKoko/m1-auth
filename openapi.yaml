@@ -1,0 +1,1607 @@
+openapi: 3.1.0
+info:
+  title: Módulo 1 · PKI Interna, Autenticación y Gestión de Identidades
+  description: 'Módulo 1 del Sistema de Boletaje Seguro para Auditorio.
+
+
+    - **JWT:** ES256 (ECDSA P-256), claims `sub, role, iss, aud, iat, nbf, exp, jti,
+    idh`, header `kid`.
+
+    - **JWKS:** `/.well-known/jwks.json` (llave activa + anterior durante la rotación).
+
+    - **PKI:** intermedias de M1 (servicios, dispositivos, eventos) firmadas por la
+    raíz de la TTP.
+
+    - **Errores:** RFC 7807 (`application/problem+json`) con `correlation_id`.
+
+    '
+  contact:
+    name: Equipo Módulo 1 (Auth & Crypto Core)
+  version: 1.0.0
+paths:
+  /auth/register:
+    post:
+      tags:
+      - Autenticación
+      summary: Registro de comprador (RF-01)
+      operationId: register_auth_register_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterResponse'
+        '400':
+          description: Contraseña débil o común
+          content:
+            application/problem+json: {}
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Correo ya registrado
+          content:
+            application/problem+json: {}
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Datos inválidos
+          content:
+            application/problem+json: {}
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '429':
+          description: Límite de registros por IP excedido
+          content:
+            application/problem+json: {}
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /auth/login:
+    post:
+      tags:
+      - Autenticación
+      summary: 'Inicio de sesión: JWT ES256 + refresh token (RF-02)'
+      operationId: login_auth_login_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenPairResponse'
+        '401':
+          description: Credenciales inválidas (mismo mensaje si el usuario no existe)
+          content:
+            application/problem+json: {}
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '429':
+          description: Límite de intentos excedido o cuenta bloqueada temporalmente
+          content:
+            application/problem+json: {}
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /auth/refresh:
+    post:
+      tags:
+      - Autenticación
+      summary: Renovación con refresh token rotativo y detección de reúso (RF-03)
+      operationId: refresh_session_auth_refresh_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenPairResponse'
+        '401':
+          description: Refresh token inválido, expirado o reutilizado
+          content:
+            application/problem+json: {}
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /auth/logout:
+    post:
+      tags:
+      - Autenticación
+      summary: 'Logout: revoca la familia del refresh token (RF-04)'
+      operationId: logout_auth_logout_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
+        required: true
+      responses:
+        '204':
+          description: Successful Response
+        '401':
+          description: No autenticado
+          content:
+            application/problem+json: {}
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - HTTPBearer: []
+  /auth/me:
+    get:
+      tags:
+      - Autenticación
+      summary: Perfil y rol del usuario autenticado
+      operationId: get_me_auth_me_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileResponse'
+        '401':
+          description: Token JWT inválido o expirado
+          content:
+            application/problem+json: {}
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      security:
+      - HTTPBearer: []
+  /.well-known/jwks.json:
+    get:
+      tags:
+      - Públicos
+      summary: Llaves públicas de firma JWT por kid (RF-08); activa + anterior en
+        rotación
+      operationId: get_jwks__well_known_jwks_json_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JWKSResponse'
+  /pki/ca-chain:
+    get:
+      tags:
+      - PKI
+      summary: 'Cadena PEM: intermedias de M1 + raíz de la TTP, para validación offline
+        (RF-15)'
+      operationId: get_ca_chain_pki_ca_chain_get
+      responses:
+        '200':
+          description: Cadena PEM
+          content:
+            application/x-pem-file: {}
+  /pki/crl:
+    get:
+      tags:
+      - PKI
+      summary: CRL v2 firmada por cada intermedia, en PEM (RF-14)
+      operationId: get_crl_pki_crl_get
+      responses:
+        '200':
+          description: CRL(s) PEM
+          content:
+            application/pkix-crl: {}
+  /pki/csr:
+    post:
+      tags:
+      - PKI
+      summary: 'Firma de CSR (PKCS#10) según perfil: service, device o event-signing
+        (RF-12, RF-13)'
+      operationId: sign_csr_pki_csr_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CSRRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CSRResponse'
+        '400':
+          description: CSR inválido (firma, curva o CN)
+          content:
+            application/problem+json: {}
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '401':
+          description: No autenticado
+          content:
+            application/problem+json: {}
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Perfil no autorizado para el solicitante
+          content:
+            application/problem+json: {}
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - HTTPBearer: []
+  /pki/revoke:
+    post:
+      tags:
+      - PKI
+      summary: Revocación por número de serie; regenera la CRL y publica certificate.revoked
+        (RF-14)
+      operationId: revoke_certificate_pki_revoke_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RevokeRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RevokeResponse'
+        '403':
+          description: Requiere rol admin
+          content:
+            application/problem+json: {}
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Certificado no encontrado
+          content:
+            application/problem+json: {}
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Ya estaba revocado
+          content:
+            application/problem+json: {}
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - HTTPBearer: []
+  /pki/certificates:
+    get:
+      tags:
+      - PKI
+      summary: Inventario de certificados emitidos (solo admin; panel de administración)
+      operationId: list_certificates_pki_certificates_get
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: profile
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Profile
+      - name: status
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Status
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 200
+          minimum: 1
+          default: 50
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CertificateResponse'
+                title: Response List Certificates Pki Certificates Get
+        '403':
+          description: Requiere rol admin
+          content:
+            application/problem+json: {}
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /devices/enrollment-codes:
+    post:
+      tags:
+      - Dispositivos
+      summary: Genera un código de enrolamiento de un solo uso, 15 min (RF-16)
+      operationId: create_enrollment_code_devices_enrollment_codes_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnrollmentCodeCreateRequest'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnrollmentCodeResponse'
+        '403':
+          description: Requiere rol admin
+          content:
+            application/problem+json: {}
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - HTTPBearer: []
+  /devices/enroll:
+    post:
+      tags:
+      - Dispositivos
+      summary: El escáner envía su CSR y el código; recibe su certificado de dispositivo
+        (RF-16)
+      operationId: enroll_device_devices_enroll_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceEnrollRequest'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceEnrollResponse'
+        '400':
+          description: Código inválido, expirado o ya utilizado, o CSR inválido
+          content:
+            application/problem+json: {}
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /devices:
+    get:
+      tags:
+      - Dispositivos
+      summary: Lista de dispositivos enrolados (solo admin)
+      operationId: list_devices_devices_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/DeviceResponse'
+                type: array
+                title: Response List Devices Devices Get
+        '403':
+          description: Requiere rol admin
+          content:
+            application/problem+json: {}
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      security:
+      - HTTPBearer: []
+  /devices/{device_id}/revoke:
+    post:
+      tags:
+      - Dispositivos
+      summary: Desactiva un dispositivo y revoca su certificado (RF-17, deseable)
+      operationId: revoke_device_devices__device_id__revoke_post
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: device_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Device Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceResponse'
+        '403':
+          description: Requiere rol admin
+          content:
+            application/problem+json: {}
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Dispositivo no encontrado
+          content:
+            application/problem+json: {}
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/users:
+    get:
+      tags:
+      - Administración
+      summary: Consulta de usuarios con búsqueda (solo admin, RF-06)
+      operationId: list_users_admin_users_get
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: q
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Q
+      - name: role
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/RoleEnum'
+          - type: 'null'
+          title: Role
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 200
+          minimum: 1
+          default: 50
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUserListResponse'
+        '403':
+          description: Requiere rol admin
+          content:
+            application/problem+json: {}
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - Administración
+      summary: Alta de usuario con rol asignado (solo admin, RF-06)
+      operationId: create_user_admin_users_post
+      security:
+      - HTTPBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUserCreateRequest'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUserResponse'
+        '403':
+          description: Requiere rol admin
+          content:
+            application/problem+json: {}
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Correo ya registrado
+          content:
+            application/problem+json: {}
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/users/{user_id}:
+    patch:
+      tags:
+      - Administración
+      summary: Cambio de rol, desbloqueo o desactivación de usuario (solo admin, RF-06)
+      operationId: update_user_admin_users__user_id__patch
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: User Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUserUpdateRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUserResponse'
+        '403':
+          description: Requiere rol admin
+          content:
+            application/problem+json: {}
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Usuario no encontrado
+          content:
+            application/problem+json: {}
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/audit:
+    get:
+      tags:
+      - Administración
+      summary: Consulta de la bitácora de seguridad (solo admin, RF-18)
+      operationId: get_audit_log_admin_audit_get
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: action
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Action
+      - name: since
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Since
+      - name: until
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Until
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 500
+          minimum: 1
+          default: 100
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditLogListResponse'
+        '403':
+          description: Requiere rol admin
+          content:
+            application/problem+json: {}
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /admin/signing-keys/rotate:
+    post:
+      tags:
+      - Administración
+      summary: Rota la llave de firma JWT; la anterior sigue publicada en el JWKS
+        (RNF-04)
+      operationId: rotate_signing_key_admin_signing_keys_rotate_post
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KeyRotationResponse'
+        '403':
+          description: Requiere rol admin
+          content:
+            application/problem+json: {}
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      security:
+      - HTTPBearer: []
+  /health:
+    get:
+      tags:
+      - Salud
+      summary: Estado del servicio
+      operationId: health_check_health_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+components:
+  schemas:
+    AdminUserCreateRequest:
+      properties:
+        email:
+          type: string
+          format: email
+          title: Email
+        password:
+          type: string
+          maxLength: 128
+          minLength: 8
+          title: Password
+        nombre:
+          type: string
+          maxLength: 120
+          minLength: 2
+          title: Nombre
+        role:
+          $ref: '#/components/schemas/RoleEnum'
+          default: staff
+      type: object
+      required:
+      - email
+      - password
+      - nombre
+      title: AdminUserCreateRequest
+    AdminUserListResponse:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/AdminUserResponse'
+          type: array
+          title: Items
+        total:
+          type: integer
+          title: Total
+      type: object
+      required:
+      - items
+      - total
+      title: AdminUserListResponse
+    AdminUserResponse:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        email:
+          type: string
+          format: email
+          title: Email
+        nombre:
+          type: string
+          title: Nombre
+        role:
+          $ref: '#/components/schemas/RoleEnum'
+        status:
+          $ref: '#/components/schemas/UserStatusEnum'
+        idh:
+          type: string
+          title: Idh
+        failed_attempts:
+          type: integer
+          title: Failed Attempts
+          default: 0
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - id
+      - email
+      - nombre
+      - role
+      - status
+      - idh
+      - created_at
+      title: AdminUserResponse
+    AdminUserUpdateRequest:
+      properties:
+        role:
+          anyOf:
+          - $ref: '#/components/schemas/RoleEnum'
+          - type: 'null'
+        status:
+          anyOf:
+          - $ref: '#/components/schemas/UserStatusEnum'
+          - type: 'null'
+      type: object
+      title: AdminUserUpdateRequest
+    AuditLogEntry:
+      properties:
+        id:
+          type: integer
+          title: Id
+        actor:
+          type: string
+          title: Actor
+        action:
+          type: string
+          title: Action
+        target:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Target
+        ip_address:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Ip Address
+        correlation_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Correlation Id
+        timestamp:
+          type: string
+          format: date-time
+          title: Timestamp
+        details:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Details
+        tsa_token:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Tsa Token
+      type: object
+      required:
+      - id
+      - actor
+      - action
+      - timestamp
+      title: AuditLogEntry
+    AuditLogListResponse:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/AuditLogEntry'
+          type: array
+          title: Items
+        total:
+          type: integer
+          title: Total
+      type: object
+      required:
+      - items
+      - total
+      title: AuditLogListResponse
+    CSRRequest:
+      properties:
+        csr_pem:
+          type: string
+          maxLength: 8192
+          title: Csr Pem
+          description: PKCS#10 Certificate Signing Request en formato PEM
+        profile:
+          $ref: '#/components/schemas/CertProfileEnum'
+          description: Perfil solicitado según la CA intermedia
+        valid_days:
+          anyOf:
+          - type: integer
+            maximum: 400.0
+            minimum: 1.0
+          - type: 'null'
+          title: Valid Days
+          description: 'Vigencia deseada (se recorta al máximo del perfil). Para event-signing:
+            duración del evento + margen.'
+      type: object
+      required:
+      - csr_pem
+      - profile
+      title: CSRRequest
+    CSRResponse:
+      properties:
+        serial_number:
+          type: string
+          title: Serial Number
+          examples:
+          - 4a8f12c90e1b
+        subject:
+          type: string
+          title: Subject
+          examples:
+          - CN=m4-tickets-event-01
+        profile:
+          $ref: '#/components/schemas/CertProfileEnum'
+        not_before:
+          type: string
+          format: date-time
+          title: Not Before
+        not_after:
+          type: string
+          format: date-time
+          title: Not After
+        certificate_pem:
+          type: string
+          title: Certificate Pem
+        ca_chain_pem:
+          type: string
+          title: Ca Chain Pem
+      type: object
+      required:
+      - serial_number
+      - subject
+      - profile
+      - not_before
+      - not_after
+      - certificate_pem
+      - ca_chain_pem
+      title: CSRResponse
+    CertProfileEnum:
+      type: string
+      enum:
+      - service
+      - device
+      - event-signing
+      title: CertProfileEnum
+    CertificateResponse:
+      properties:
+        serial:
+          type: string
+          title: Serial
+        subject:
+          type: string
+          title: Subject
+        profile:
+          type: string
+          title: Profile
+        issuer:
+          type: string
+          title: Issuer
+        requested_by:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Requested By
+        not_before:
+          type: string
+          format: date-time
+          title: Not Before
+        not_after:
+          type: string
+          format: date-time
+          title: Not After
+        status:
+          type: string
+          title: Status
+        revoked_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Revoked At
+        reason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Reason
+      type: object
+      required:
+      - serial
+      - subject
+      - profile
+      - issuer
+      - requested_by
+      - not_before
+      - not_after
+      - status
+      - revoked_at
+      - reason
+      title: CertificateResponse
+    DeviceEnrollRequest:
+      properties:
+        code:
+          type: string
+          maxLength: 128
+          minLength: 16
+          title: Code
+          description: Código de un solo uso
+        csr_pem:
+          type: string
+          maxLength: 8192
+          title: Csr Pem
+          description: CSR PKCS#10 generado por el escáner
+      type: object
+      required:
+      - code
+      - csr_pem
+      title: DeviceEnrollRequest
+    DeviceEnrollResponse:
+      properties:
+        device_id:
+          type: string
+          format: uuid
+          title: Device Id
+        nombre:
+          type: string
+          title: Nombre
+        cert_serial:
+          type: string
+          title: Cert Serial
+        certificate_pem:
+          type: string
+          title: Certificate Pem
+        ca_chain_pem:
+          type: string
+          title: Ca Chain Pem
+        enrolled_at:
+          type: string
+          format: date-time
+          title: Enrolled At
+      type: object
+      required:
+      - device_id
+      - nombre
+      - cert_serial
+      - certificate_pem
+      - ca_chain_pem
+      - enrolled_at
+      title: DeviceEnrollResponse
+    DeviceResponse:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        nombre:
+          type: string
+          title: Nombre
+        cert_serial:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Cert Serial
+        status:
+          type: string
+          title: Status
+        enrolled_by:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Enrolled By
+        enrolled_at:
+          type: string
+          format: date-time
+          title: Enrolled At
+      type: object
+      required:
+      - id
+      - nombre
+      - cert_serial
+      - status
+      - enrolled_by
+      - enrolled_at
+      title: DeviceResponse
+    EnrollmentCodeCreateRequest:
+      properties:
+        device_name:
+          type: string
+          maxLength: 128
+          minLength: 3
+          title: Device Name
+          examples:
+          - Escaner-Puerta-Norte-01
+      type: object
+      required:
+      - device_name
+      title: EnrollmentCodeCreateRequest
+    EnrollmentCodeResponse:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        device_name:
+          type: string
+          title: Device Name
+        enrollment_code:
+          type: string
+          title: Enrollment Code
+          description: Código de un solo uso (se muestra una sola vez)
+        expires_at:
+          type: string
+          format: date-time
+          title: Expires At
+      type: object
+      required:
+      - id
+      - device_name
+      - enrollment_code
+      - expires_at
+      title: EnrollmentCodeResponse
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    HealthResponse:
+      properties:
+        status:
+          type: string
+          title: Status
+          examples:
+          - ok
+        service:
+          type: string
+          title: Service
+          examples:
+          - m1-auth
+        version:
+          type: string
+          title: Version
+          examples:
+          - 1.0.0
+        timestamp:
+          type: string
+          format: date-time
+          title: Timestamp
+        checks:
+          additionalProperties:
+            type: string
+          type: object
+          title: Checks
+          examples:
+          - db: ok
+            redis: ok
+      type: object
+      required:
+      - status
+      - service
+      - version
+      - timestamp
+      title: HealthResponse
+    JWKItem:
+      properties:
+        kty:
+          type: string
+          title: Kty
+          examples:
+          - EC
+        crv:
+          type: string
+          title: Crv
+          examples:
+          - P-256
+        use:
+          type: string
+          title: Use
+          examples:
+          - sig
+        alg:
+          type: string
+          title: Alg
+          examples:
+          - ES256
+        kid:
+          type: string
+          title: Kid
+          examples:
+          - m1-20261118-a1b2c3d4
+        x:
+          type: string
+          title: X
+        y:
+          type: string
+          title: Y
+      type: object
+      required:
+      - kty
+      - crv
+      - use
+      - alg
+      - kid
+      - x
+      - y
+      title: JWKItem
+    JWKSResponse:
+      properties:
+        keys:
+          items:
+            $ref: '#/components/schemas/JWKItem'
+          type: array
+          title: Keys
+      type: object
+      required:
+      - keys
+      title: JWKSResponse
+    KeyRotationResponse:
+      properties:
+        new_kid:
+          type: string
+          title: New Kid
+        published_kids:
+          items:
+            type: string
+          type: array
+          title: Published Kids
+      type: object
+      required:
+      - new_kid
+      - published_kids
+      title: KeyRotationResponse
+    LoginRequest:
+      properties:
+        email:
+          type: string
+          maxLength: 254
+          minLength: 3
+          title: Email
+          examples:
+          - comprador@example.com
+        password:
+          type: string
+          maxLength: 128
+          minLength: 1
+          title: Password
+          examples:
+          - clave-segura-larga-123
+      type: object
+      required:
+      - email
+      - password
+      title: LoginRequest
+    LogoutRequest:
+      properties:
+        refresh_token:
+          type: string
+          maxLength: 256
+          minLength: 16
+          title: Refresh Token
+      type: object
+      required:
+      - refresh_token
+      title: LogoutRequest
+    ProblemDetails:
+      properties:
+        type:
+          type: string
+          title: Type
+          default: about:blank
+          examples:
+          - https://auth.boletera.local/errors/invalid-credentials
+        title:
+          type: string
+          title: Title
+          examples:
+          - Unauthorized
+        status:
+          type: integer
+          title: Status
+          examples:
+          - 401
+        detail:
+          type: string
+          title: Detail
+          examples:
+          - Credenciales inválidas.
+        instance:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Instance
+          examples:
+          - /auth/login
+        correlation_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Correlation Id
+      type: object
+      required:
+      - title
+      - status
+      - detail
+      title: ProblemDetails
+      description: Formato estándar de errores HTTP según RFC 7807 (ADR-0004).
+    RefreshRequest:
+      properties:
+        refresh_token:
+          type: string
+          maxLength: 256
+          minLength: 16
+          title: Refresh Token
+      type: object
+      required:
+      - refresh_token
+      title: RefreshRequest
+    RegisterRequest:
+      properties:
+        email:
+          type: string
+          format: email
+          title: Email
+          examples:
+          - comprador@example.com
+        password:
+          type: string
+          maxLength: 128
+          minLength: 8
+          title: Password
+          examples:
+          - clave-segura-larga-123
+        nombre:
+          type: string
+          maxLength: 120
+          minLength: 2
+          title: Nombre
+          examples:
+          - Ana López
+      type: object
+      required:
+      - email
+      - password
+      - nombre
+      title: RegisterRequest
+    RegisterResponse:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        email:
+          type: string
+          format: email
+          title: Email
+        nombre:
+          type: string
+          title: Nombre
+        role:
+          $ref: '#/components/schemas/RoleEnum'
+        status:
+          $ref: '#/components/schemas/UserStatusEnum'
+        idh:
+          type: string
+          title: Idh
+          description: 'Hash de identidad: HMAC-SHA256(pepper, user_id) (RF-09)'
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - id
+      - email
+      - nombre
+      - role
+      - status
+      - idh
+      - created_at
+      title: RegisterResponse
+    RevocationReasonEnum:
+      type: string
+      enum:
+      - unspecified
+      - keyCompromise
+      - affiliationChanged
+      - superseded
+      - cessationOfOperation
+      - certificateHold
+      title: RevocationReasonEnum
+    RevokeRequest:
+      properties:
+        serial_number:
+          type: string
+          maxLength: 64
+          minLength: 4
+          title: Serial Number
+        reason:
+          $ref: '#/components/schemas/RevocationReasonEnum'
+          examples:
+          - keyCompromise
+      type: object
+      required:
+      - serial_number
+      - reason
+      title: RevokeRequest
+    RevokeResponse:
+      properties:
+        serial_number:
+          type: string
+          title: Serial Number
+        status:
+          type: string
+          title: Status
+          default: REVOKED
+        revoked_at:
+          type: string
+          format: date-time
+          title: Revoked At
+        reason:
+          type: string
+          title: Reason
+        crl_updated:
+          type: boolean
+          title: Crl Updated
+          default: true
+      type: object
+      required:
+      - serial_number
+      - revoked_at
+      - reason
+      title: RevokeResponse
+    RoleEnum:
+      type: string
+      enum:
+      - buyer
+      - admin
+      - staff
+      title: RoleEnum
+    TokenPairResponse:
+      properties:
+        access_token:
+          type: string
+          title: Access Token
+          description: JWT firmado con ES256 (15 min)
+        refresh_token:
+          type: string
+          title: Refresh Token
+          description: Token opaco rotativo (7 días)
+        token_type:
+          type: string
+          title: Token Type
+          default: Bearer
+        expires_in:
+          type: integer
+          title: Expires In
+          description: Segundos de vigencia del access token
+          default: 900
+      type: object
+      required:
+      - access_token
+      - refresh_token
+      title: TokenPairResponse
+    UserProfileResponse:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        email:
+          type: string
+          format: email
+          title: Email
+        nombre:
+          type: string
+          title: Nombre
+        role:
+          $ref: '#/components/schemas/RoleEnum'
+        status:
+          $ref: '#/components/schemas/UserStatusEnum'
+        idh:
+          type: string
+          title: Idh
+          description: 'Hash de identidad: HMAC-SHA256(pepper, user_id) (RF-09)'
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - id
+      - email
+      - nombre
+      - role
+      - status
+      - idh
+      - created_at
+      title: UserProfileResponse
+    UserStatusEnum:
+      type: string
+      enum:
+      - ACTIVE
+      - LOCKED
+      - DEACTIVATED
+      title: UserStatusEnum
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError
+  securitySchemes:
+    HTTPBearer:
+      type: http
+      scheme: bearer
+servers:
+- url: http://localhost:8000
+  description: Desarrollo local
+- url: https://api.boletera.local/auth
+  description: Integración detrás de Traefik

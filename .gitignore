@@ -21,3 +21,9 @@ coverage.xml
 .vscode/
 .idea/
 .DS_Store
+
+# Ceremonia de llaves: nunca a Git
+ceremony-out/
+
+# Node (middleware TS)
+node_modules/

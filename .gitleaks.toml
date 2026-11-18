@@ -1,0 +1,12 @@
+# Gitleaks (AG-02). La llave de PRUEBA de los vectores (JO-01) es pública a propósito.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Llave P-256 pública de vectores de prueba y vectores derivados"
+paths = [
+  '''tests/vectors/test_key_p256\.pem''',
+  '''contracts/test-vectors/.*\.json''',
+  # Misma llave de prueba, en el historial del PR #1 (ya no existe en el árbol).
+  '''m1-auth/app/core/stub_keys\.py''',
+]

@@ -6,6 +6,9 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   quality-and-tests:
     runs-on: ubuntu-latest
@@ -29,8 +32,11 @@ jobs:
           --health-interval 5s --health-timeout 3s --health-retries 10
 
     env:
-      DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/boletera
-      REDIS_URL: redis://localhost:6379/0
+      PGPASSWORD: postgres
+      # Credenciales efímeras SOLO para la BD del job (no son secretos reales).
+      M1_OWNER_URL: postgresql+psycopg://m1_owner:ci-owner@localhost:5432/boletera
+      TEST_DATABASE_URL: postgresql+psycopg://m1_app:ci-app@localhost:5432/boletera
+      TEST_OTHER_MODULE_URL: postgresql+psycopg://m2_app:ci-other@localhost:5432/boletera
 
     steps:
       - uses: actions/checkout@v4
@@ -50,15 +56,30 @@ jobs:
           ruff check .
           ruff format --check .
 
-      - name: mypy
-        run: mypy app
+      - name: mypy (strict)
+        run: |
+          mypy app
+          mypy --strict middleware/python scripts
 
-      # Cuando exista 00_init.sql (OG-01), cárgalo aquí antes de las pruebas:
-      # - name: Crear esquemas y roles
-      #   run: psql postgresql://postgres:postgres@localhost:5432/boletera -f db/00_init.sql
+      - name: Crear esquemas, roles y permisos (00_init.sql · OG-01)
+        run: >
+          psql -h localhost -U postgres -d boletera
+          -v m1_owner_pw=ci-owner -v m1_app_pw=ci-app -v other_pw=ci-other
+          -f db/sql/00_init.sql
 
-      - name: pytest
-        run: pytest --cov=app --cov-report=term-missing
+      - name: Migraciones del esquema auth como m1_owner (AG-06)
+        run: MIGRATIONS_DATABASE_URL=$M1_OWNER_URL alembic upgrade head
+
+      - name: pytest contra PostgreSQL real (incluye pruebas de permisos AG-03)
+        run: pytest --cov=app --cov-report=term-missing --cov-report=xml
+
+      - name: pytest con SQLite (sin infraestructura)
+        run: TEST_DATABASE_URL= TEST_OTHER_MODULE_URL= pytest -q
+
+      - name: El contrato openapi.yaml está actualizado (BT-01)
+        run: |
+          python scripts/export_openapi.py
+          git diff --exit-code openapi.yaml
 
       - name: Bandit
         run: bandit -c pyproject.toml -r app
@@ -70,11 +91,12 @@ jobs:
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: .gitleaks.toml
 
   docker-build:
     runs-on: ubuntu-latest
     needs: quality-and-tests
     steps:
       - uses: actions/checkout@v4
-      - name: Construir imagen (sin publicar; la publicación a GHCR es AG-09)
+      - name: Construir imagen (la publicación a GHCR es AG-09)
         run: docker build -t m1-auth:ci .

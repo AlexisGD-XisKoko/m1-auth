@@ -1,6 +1,6 @@
 [project]
 name = "m1-auth"
-version = "0.1.0"
+version = "1.0.0"
 description = "Módulo 1: Identidades, JWT y PKI del sistema de boletera"
 requires-python = ">=3.12"
 
@@ -13,18 +13,21 @@ select = ["E", "F", "I", "B", "UP", "S"]
 ignore = []
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S101"]
-"m1-auth/tests/**" = ["S101"]
+"tests/**" = ["S101", "S105", "S106", "E501"]
+"migrations/versions/**" = ["E501"]
+"scripts/**" = ["T201"]
 
 [tool.mypy]
 python_version = "3.12"
 strict = true
 ignore_missing_imports = true
 plugins = ["pydantic.mypy"]
+exclude = ["migrations/versions/"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+filterwarnings = ["ignore::DeprecationWarning:starlette.*", "ignore:Using `httpx`"]
 
 [tool.bandit]
 exclude_dirs = ["tests"]
