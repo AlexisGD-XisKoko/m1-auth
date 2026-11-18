@@ -1,0 +1,35 @@
+{
+  "description": "JWT ES256 válido emitido por M1 (llave de prueba).",
+  "jwks": {
+    "keys": [
+      {
+        "kty": "EC",
+        "crv": "P-256",
+        "use": "sig",
+        "alg": "ES256",
+        "kid": "m1-test-vector-key",
+        "x": "DwHLJR0TPMpPwNqpzpq4uo9b3CHXmyamkYjqi6y3gZo",
+        "y": "YGqTNUbIDYL9CSqsFUWvSm6gOg269lVGmfbcjMWSwHk"
+      }
+    ]
+  },
+  "token": "eyJhbGciOiJFUzI1NiIsImtpZCI6Im0xLXRlc3QtdmVjdG9yLWtleSIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2ZjFmMmE4ZS0xYzJiLTRkM2UtOWY0MC0xMjM0NTY3ODlhYmMiLCJyb2xlIjoiYnV5ZXIiLCJpc3MiOiJodHRwczovL2F1dGguYm9sZXRlcmEubG9jYWwiLCJhdWQiOiJib2xldGVyYS1hcGkiLCJpYXQiOjE3NjMwMDAwMDAsIm5iZiI6MTc2MzAwMDAwMCwiZXhwIjo0MTAyNDQ0ODAwLCJqdGkiOiIwMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJpZGgiOiIyN2IwZjIyZjMyMDY5NWEyMTQzNzY5ZjNiNmFjYzU4MDI1M2M5YTE0ZDAyZGM2NzI2ZTYyMjM4ZmI1NmI4YTAwIn0.LI-wlzTxsNBsT3SkytTG8609PfZkO4TfEy5rGUf03mIR-l-AzEbk9NXNE_F7-nPHKue5kyXnTrKx2ZgRPL-s9g",
+  "expected_claims": {
+    "sub": "6f1f2a8e-1c2b-4d3e-9f40-123456789abc",
+    "role": "buyer",
+    "iss": "https://auth.boletera.local",
+    "aud": "boletera-api",
+    "iat": 1763000000,
+    "nbf": 1763000000,
+    "exp": 4102444800,
+    "jti": "00000000-0000-4000-8000-000000000001",
+    "idh": "27b0f22f320695a2143769f3b6acc580253c9a14d02dc6726e62238fb56b8a00"
+  },
+  "verify_with": {
+    "algorithms": [
+      "ES256"
+    ],
+    "issuer": "https://auth.boletera.local",
+    "audience": "boletera-api"
+  }
+}

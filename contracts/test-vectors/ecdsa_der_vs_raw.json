@@ -1,0 +1,7 @@
+{
+  "description": "Misma firma ECDSA P-256/SHA-256 en DER (OpenSSL/Java) y R||S (JWS/WebCrypto).",
+  "public_key_pem": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEDwHLJR0TPMpPwNqpzpq4uo9b3CHX\nmyamkYjqi6y3gZpgapM1RsgNgv0JKqwVRa9KbqA6Dbr2VUaZ9tyMxZLAeQ==\n-----END PUBLIC KEY-----\n",
+  "message_utf8": "{\"event_id\":\"E-01\",\"owner_idh\":\"27b0f22f320695a2143769f3b6acc580253c9a14d02dc6726e62238fb56b8a00\",\"seat\":\"A-12\",\"ticket_id\":\"T-0001\"}",
+  "signature_der_b64": "MEYCIQC5GmaJSLJzIADC9OOQiNVM5d+4PuAlTyYqDsGcv5gjsgIhAONT8yMsmt66mRRd4kiiKMnfkxN/kEk1aXv4zFUDaJiO",
+  "signature_raw_rs_b64url": "uRpmiUiycyAAwvTjkIjVTOXfuD7gJU8mKg7BnL-YI7LjU_MjLJreupkUXeJIoijJ35MTf5BJNWl7-MxVA2iYjg"
+}
