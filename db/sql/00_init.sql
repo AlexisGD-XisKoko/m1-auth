@@ -22,6 +22,27 @@ FROM (VALUES
 WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = r.name)
 \gexec
 
+-- En la nube (Neon, Supabase) el administrador NO es superusuario: para crear esquemas
+-- con AUTHORIZATION mN_owner y fijar sus privilegios por defecto debe ser miembro de
+-- cada rol dueño. Como él los creó (CREATEROLE), puede concedérselos a sí mismo.
+DO $$
+DECLARE r text;
+BEGIN
+  IF NOT (SELECT rolsuper FROM pg_roles WHERE rolname = current_user) THEN
+    FOREACH r IN ARRAY ARRAY['m1_owner','m2_owner','m3_owner','m4_owner','m6_owner','trust_owner']
+    LOOP
+      IF current_setting('server_version_num')::int >= 160000 THEN
+        -- PG16+: CREATEROLE solo deja ADMIN OPTION; hacen falta SET e INHERIT para actuar como el dueño.
+        IF NOT (pg_has_role(current_user, r, 'SET') AND pg_has_role(current_user, r, 'USAGE')) THEN
+          EXECUTE format('GRANT %I TO %I WITH INHERIT TRUE, SET TRUE', r, current_user);
+        END IF;
+      ELSIF NOT pg_has_role(current_user, r, 'MEMBER') THEN
+        EXECUTE format('GRANT %I TO %I', r, current_user);
+      END IF;
+    END LOOP;
+  END IF;
+END $$;
+
 -- Límite de conexiones por rol de aplicación (STRIDE: DoS por agotamiento de conexiones).
 ALTER ROLE m1_app CONNECTION LIMIT 5;
 ALTER ROLE m2_app CONNECTION LIMIT 5;
