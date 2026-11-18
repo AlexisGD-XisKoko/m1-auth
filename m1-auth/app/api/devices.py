@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from fastapi import APIRouter, status
@@ -23,7 +23,7 @@ router = APIRouter(prefix="/devices", tags=["Dispositivos"])
     responses={403: {"model": ProblemDetails, "description": "Requiere rol admin"}},
 )
 async def create_enrollment_code(payload: EnrollmentCodeCreateRequest) -> EnrollmentCodeResponse:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     return EnrollmentCodeResponse(
         id=uuid4(),
         enrollment_code="STUB-ENROLL-CODE-1234567890",
@@ -47,5 +47,5 @@ async def enroll_device(payload: DeviceEnrollRequest) -> DeviceEnrollResponse:
         cert_serial="0x9988776655",
         certificate_pem=STUB_CA_CHAIN_PEM,
         ca_chain_pem=STUB_CA_CHAIN_PEM,
-        enrolled_at=datetime.now(timezone.utc),
+        enrolled_at=datetime.now(UTC),
     )

@@ -1,17 +1,17 @@
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from uuid import UUID
 
 from pydantic import BaseModel, Field
 
 
-class RoleEnum(str, Enum):
+class RoleEnum(StrEnum):
     buyer = "buyer"
     admin = "admin"
     staff = "staff"
 
 
-class UserStatusEnum(str, Enum):
+class UserStatusEnum(StrEnum):
     ACTIVE = "ACTIVE"
     LOCKED = "LOCKED"
     DEACTIVATED = "DEACTIVATED"
@@ -20,7 +20,9 @@ class UserStatusEnum(str, Enum):
 class ProblemDetails(BaseModel):
     """Formato estándar de errores HTTP según RFC 7807 (ADR-0004)."""
 
-    type: str = Field(default="about:blank", examples=["https://auth.boletera.local/errors/invalid-credentials"])
+    type: str = Field(
+        default="about:blank", examples=["https://auth.boletera.local/errors/invalid-credentials"]
+    )
     title: str = Field(..., examples=["Unauthorized"])
     status: int = Field(..., examples=[401])
     detail: str = Field(..., examples=["Credenciales inválidas."])

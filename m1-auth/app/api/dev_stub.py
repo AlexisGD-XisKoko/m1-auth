@@ -11,14 +11,25 @@ router = APIRouter(prefix="/dev", tags=["Dev Stub (Hito H1)"])
 
 
 class DevTokenRequest(BaseModel):
-    role: RoleEnum = Field(default=RoleEnum.buyer, description="Rol del token: buyer, admin o staff")
-    user_id: str | None = Field(default=None, description="UUID opcional; si se omite se genera uno nuevo")
-    ttl_seconds: int = Field(default=900, ge=10, le=86400, description="Vigencia en segundos (default 900s = 15m)")
+    role: RoleEnum = Field(
+        default=RoleEnum.buyer,
+        description="Rol del token: buyer, admin o staff",
+    )
+    user_id: str | None = Field(
+        default=None,
+        description="UUID opcional; si se omite se genera uno nuevo",
+    )
+    ttl_seconds: int = Field(
+        default=900,
+        ge=10,
+        le=86400,
+        description="Vigencia en segundos (default 900s = 15m)",
+    )
 
 
 class DevTokenResponse(BaseModel):
     access_token: str
-    token_type: str = "Bearer"
+    token_type: str = "Bearer"  # noqa: S105
     alg: str = "ES256"
     kid: str = STUB_KID
     claims: dict[str, Any]

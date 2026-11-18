@@ -1,10 +1,10 @@
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
 
-class CertProfileEnum(str, Enum):
+class CertProfileEnum(StrEnum):
     service = "service"
     device = "device"
     event_signing = "event-signing"

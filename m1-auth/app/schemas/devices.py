@@ -5,7 +5,12 @@ from pydantic import BaseModel, Field
 
 
 class EnrollmentCodeCreateRequest(BaseModel):
-    device_name: str = Field(..., min_length=3, max_length=128, examples=["Escaner-Puerta-Norte-01"])
+    device_name: str = Field(
+        ...,
+        min_length=3,
+        max_length=128,
+        examples=["Escaner-Puerta-Norte-01"],
+    )
 
 
 class EnrollmentCodeResponse(BaseModel):

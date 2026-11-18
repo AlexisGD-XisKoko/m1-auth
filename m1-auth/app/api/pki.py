@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Response
 
@@ -58,7 +58,7 @@ async def get_crl() -> Response:
     },
 )
 async def sign_csr(payload: CSRRequest) -> CSRResponse:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     return CSRResponse(
         serial_number="0x1a2b3c4d5e6f",
         subject="CN=stub-subject",
@@ -83,7 +83,7 @@ async def revoke_certificate(payload: RevokeRequest) -> RevokeResponse:
     return RevokeResponse(
         serial_number=payload.serial_number,
         status="REVOKED",
-        revoked_at=datetime.now(timezone.utc),
+        revoked_at=datetime.now(UTC),
         reason=payload.reason,
         crl_updated=True,
     )

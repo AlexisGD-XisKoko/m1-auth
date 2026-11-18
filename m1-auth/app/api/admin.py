@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, status
@@ -33,7 +33,7 @@ async def list_users() -> AdminUserListResponse:
                 role=RoleEnum.admin,
                 status=UserStatusEnum.ACTIVE,
                 idh=compute_stub_idh(str(uid)),
-                created_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
             )
         ],
         total=1,
@@ -55,7 +55,7 @@ async def create_user(payload: AdminUserCreateRequest) -> AdminUserResponse:
         role=payload.role,
         status=UserStatusEnum.ACTIVE,
         idh=compute_stub_idh(str(uid)),
-        created_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
     )
 
 
@@ -75,7 +75,7 @@ async def update_user(user_id: UUID, payload: AdminUserUpdateRequest) -> AdminUs
         role=payload.role or RoleEnum.staff,
         status=payload.status or UserStatusEnum.ACTIVE,
         idh=compute_stub_idh(str(user_id)),
-        created_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
     )
 
 
@@ -95,7 +95,7 @@ async def get_audit_log() -> AuditLogListResponse:
                 target="m1-auth",
                 ip_address="127.0.0.1",
                 correlation_id=uuid4(),
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
                 tsa_token=None,
             )
         ],

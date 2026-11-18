@@ -1,16 +1,16 @@
-"""Pruebas del Stub (BT-02) y del Middleware JWT (BT-03) incluyendo casos negativos (Sección 4.5)."""
+"""Pruebas del Stub (BT-02) y del Middleware JWT (BT-03)."""
 
 import time
 from unittest.mock import patch
 
 import jwt
 import pytest
+from app.core.stub_keys import STUB_KID, STUB_PUBLIC_JWK, sign_stub_jwt
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
-
-from app.core.stub_keys import STUB_KID, STUB_PUBLIC_JWK, sign_stub_jwt
-from app.main import app
 from middleware.python.jwt_auth import JWKSVerifier
+
+from app.main import app
 
 client = TestClient(app)
 
@@ -40,7 +40,9 @@ def test_dev_token_and_python_middleware_valid(role: str):
         issuer="https://auth.boletera.local",
         audience="boletera-api",
     )
-    with patch.object(verifier, "_fetch_jwks", return_value={STUB_KID: jwt.PyJWK.from_dict(STUB_PUBLIC_JWK)}):
+    with patch.object(
+        verifier, "_fetch_jwks", return_value={STUB_KID: jwt.PyJWK.from_dict(STUB_PUBLIC_JWK)}
+    ):
         user = verifier.verify(token)
         assert user.role == role
         assert len(user.idh) == 64
@@ -79,8 +81,21 @@ def test_reject_expired_wrong_iss_aud_unknown_kid():
 
         # kid desconocido
         unknown_kid_tok = jwt.encode(
-            {"sub": "1", "role": "buyer", "iss": "https://auth.boletera.local", "aud": "boletera-api", "exp": int(time.time()) + 60, "iat": int(time.time()), "jti": "x", "idh": "y"},
-            key=open if False else __import__("app.core.stub_keys", fromlist=["STUB_PRIVATE_KEY_PEM"]).STUB_PRIVATE_KEY_PEM,
+            {
+                "sub": "1",
+                "role": "buyer",
+                "iss": "https://auth.boletera.local",
+                "aud": "boletera-api",
+                "exp": int(time.time()) + 60,
+                "iat": int(time.time()),
+                "jti": "x",
+                "idh": "y",
+            },
+            key=open
+            if False
+            else __import__(
+                "app.core.stub_keys", fromlist=["STUB_PRIVATE_KEY_PEM"]
+            ).STUB_PRIVATE_KEY_PEM,
             algorithm="ES256",
             headers={"kid": "kid-inexistente"},
         )

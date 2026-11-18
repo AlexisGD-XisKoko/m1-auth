@@ -5,6 +5,7 @@ import os
 os.environ["ENABLE_DEV_STUB"] = "false"
 
 import yaml  # noqa: E402
+
 from app.main import app  # noqa: E402
 
 schema = app.openapi()

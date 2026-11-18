@@ -12,8 +12,8 @@ from __future__ import annotations
 import os
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable
 
 import httpx
 import jwt
@@ -154,7 +154,7 @@ _default_verifier = create_jwt_verifier()
 
 
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),  # noqa: B008
 ) -> AuthenticatedUser:
     if credentials is None or credentials.scheme.lower() != "bearer":
         raise HTTPException(
@@ -165,7 +165,9 @@ async def get_current_user(
 
 
 def require_roles(*allowed_roles: str) -> Callable[[AuthenticatedUser], AuthenticatedUser]:
-    async def _checker(user: AuthenticatedUser = Depends(get_current_user)) -> AuthenticatedUser:
+    async def _checker(
+        user: AuthenticatedUser = Depends(get_current_user),  # noqa: B008
+    ) -> AuthenticatedUser:
         if user.role not in allowed_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,

@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
 from fastapi import APIRouter, status
@@ -36,7 +36,7 @@ async def register(payload: RegisterRequest) -> RegisterResponse:
         role=RoleEnum.buyer,
         status=UserStatusEnum.ACTIVE,
         idh=compute_stub_idh(str(user_id)),
-        created_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
     )
 
 
@@ -55,7 +55,7 @@ async def login(payload: LoginRequest) -> TokenPairResponse:
     return TokenPairResponse(
         access_token=token,
         refresh_token=f"stub-rt-{uuid4()}",
-        token_type="Bearer",
+        token_type="Bearer",  # noqa: S106
         expires_in=900,
     )
 
@@ -64,14 +64,19 @@ async def login(payload: LoginRequest) -> TokenPairResponse:
     "/refresh",
     response_model=TokenPairResponse,
     summary="Renovación con refresh token rotativo y detección de reúso (RF-03)",
-    responses={401: {"model": ProblemDetails, "description": "Refresh token inválido, expirado o reutilizado"}},
+    responses={
+        401: {
+            "model": ProblemDetails,
+            "description": "Refresh token inválido, expirado o reutilizado",
+        }
+    },
 )
 async def refresh_session(payload: RefreshRequest) -> TokenPairResponse:
     token, _ = sign_stub_jwt(role="buyer")
     return TokenPairResponse(
         access_token=token,
         refresh_token=f"stub-rt-{uuid4()}",
-        token_type="Bearer",
+        token_type="Bearer",  # noqa: S106
         expires_in=900,
     )
 
@@ -100,5 +105,5 @@ async def get_me() -> UserProfileResponse:
         role=RoleEnum.buyer,
         status=UserStatusEnum.ACTIVE,
         idh=compute_stub_idh(str(uid)),
-        created_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
     )
